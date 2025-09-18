@@ -32,7 +32,7 @@ streamlit run app.py
 ---
 
 ## 🌐 Run Online
-- **Live Demo:** [Click here](https://monikashandilya13-coder-llm-architecture-assistant.streamlit.app)  
+- **Live Demo:** [Click here](https://[monikashandilya13-coder-llm-architecture-assistant.streamlit.app](https://llm-architecture-assistant.streamlit.app/))  
 - **Deploy Your Own:** [One-click deploy on Streamlit Cloud](https://share.streamlit.io/deploy?repo=https://github.com/monikashandilya13-coder/llm-architecture-assistant)
 
 ---
