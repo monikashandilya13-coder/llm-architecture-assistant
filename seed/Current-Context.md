@@ -1,0 +1,4 @@
+- Legacy: Monolith on Oracle DB, SOAP APIs
+- Pain: high licensing cost, weekend downtime, poor scaling
+- Team: 6 Java devs, 3 SREs, no Kafka expertise
+- Constraints: prefer managed services, limited change window

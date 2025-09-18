@@ -1,0 +1,5 @@
+- Availability: 99.9%
+- Latency: P95 ≤ 250 ms
+- RTO/RPO: 2h / 15 min
+- Cost cap: $9k/month
+- Data residency: must stay in India region
