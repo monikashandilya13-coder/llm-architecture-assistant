@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from pathlib import Path
 from datetime import date
+from jinja2 import Template
 
 try:
     from openai import OpenAI
@@ -10,18 +11,36 @@ except ImportError:
 
 # --- Streamlit Page Config ---
 st.set_page_config(page_title="LLM-Driven ADR Assistant", layout="wide")
-st.title("🧩 LLM-Driven Architecture Decision Assistant")
+st.title("🧩 LLM-Driven Architecture Decision Assistant (Dynamic Version)")
 
-# --- Load synthetic inputs ---
-seed_dir = Path("seed")
-nfrs = (seed_dir / "NFRs.md").read_text()
-context = (seed_dir / "Current-Context.md").read_text()
+# --- Paths ---
+templates_dir = Path("templates")
+out_dir = Path("out")
+out_dir.mkdir(exist_ok=True)
 
-# --- Decision Question ---
-decision = st.text_input("Decision question", "Oracle → PostgreSQL migration options")
+# --- Input Form for NFRs & Context ---
+with st.form("nfr_form"):
+    st.subheader("📥 Enter Context & NFRs")
+    availability = st.text_input("Availability", "99.9%")
+    latency = st.text_input("Latency", "P95 ≤ 250 ms")
+    cost_cap = st.text_input("Cost Cap", "$9k/month")
+    context_text = st.text_area("System Context", "Legacy: Monolith on Oracle DB, SOAP APIs...")
+    review_date = st.date_input("Review Date", date.today().replace(year=date.today().year + 1))
+
+    submitted = st.form_submit_button("Save Inputs")
+
+if submitted:
+    st.success("Inputs captured successfully.")
 
 # --- Mode Selector ---
 mode = st.radio("Choose Mode", ["Mock Mode", "Real API Mode"])
+
+# --- Trade-offs ---
+tradeoffs = st.multiselect(
+    "Which trade-off dimensions matter most?",
+    ["Cost", "Complexity", "Speed", "Reliability", "Security", "Skill Fit"],
+    default=["Cost", "Reliability"]
+)
 
 # --- API Key (only needed for real mode) ---
 api_key = ""
@@ -31,96 +50,33 @@ if mode == "Real API Mode":
         os.environ["OPENAI_API_KEY"] = api_key
         client = OpenAI()
 
-# --- Mock ADR content ---
-MOCK_ADR = f"""
-# ADR-001: Oracle → PostgreSQL Migration
-
-**Status:** Proposed  
-**Date:** {date.today()}  
-
-## Context
-{nfrs}
-
-{context}
-
-## Options
-1. **Amazon Aurora PostgreSQL (managed)**
-   - ✅ Pros: Managed service, auto-scaling, built-in HA
-   - ❌ Cons: Vendor lock-in, cost
-   - ⚠️ Risks: Migration complexity, skill gap
-
-2. **Self-managed PostgreSQL on VMs**
-   - ✅ Pros: Full control, cheaper infra
-   - ❌ Cons: Ops overhead, patching
-   - ⚠️ Risks: Reliability, SRE burden
-
-3. **PostgreSQL on Kubernetes**
-   - ✅ Pros: Portable, modern
-   - ❌ Cons: Complexity, steep learning curve
-   - ⚠️ Risks: Cluster reliability, DR gaps
-
-## Trade-off Matrix
-| Option                        | Cost 💰 | Complexity ⚙️ | Speed 🚀 | Reliability 🔒 |
-|-------------------------------|---------|---------------|----------|----------------|
-| Aurora PostgreSQL (Managed)   | 3/5     | 2/5           | 4/5      | 5/5            |
-| Self-managed PostgreSQL (VMs) | 4/5     | 4/5           | 3/5      | 3/5            |
-| PostgreSQL on Kubernetes      | 5/5     | 5/5           | 2/5      | 4/5            |
-
-*(Scores: 1 = poor, 5 = excellent)*
-
-## Decision
-Choose **Aurora PostgreSQL** because it balances availability, scaling, and reduced ops overhead.  
-Team prefers managed service given limited bandwidth.
-
-## Consequences
-+ Reduced ops burden  
-+ Predictable scaling  
-- Vendor lock-in  
-- Higher monthly spend  
-
-## Architecture (Mermaid)
-```mermaid
-flowchart TD
-    A[Legacy Oracle DB] -->|Migration| B[Aurora PostgreSQL]
-    B --> C[Order Service API]
-    C --> D[Partner Systems]
-```
-
-## Rollout & Rollback
-- Rollout: Dual-write, migrate in phases, cutover at low traffic
-- Rollback: Re-point apps to Oracle, replay recent logs
-
-## Fitness Functions
-- P95 latency < 250 ms
-- Monthly infra cost < $9k
-- Backup restore drill passes RTO=2h, RPO=15 min
-- Zero data loss during migration
-
-## Review
-- Review date: {date.today().replace(year=date.today().year+1)}
-"""
-
 # --- Generate ADR ---
 if st.button("⚡ Generate ADR"):
+    nfrs = f"- Availability: {availability}\n- Latency: {latency}\n- Cost Cap: {cost_cap}"
+
     if mode == "Mock Mode":
+        template = Template(open(templates_dir / "db_migration_mock.md").read())
+        adr_output = template.render(
+            decision_title="Oracle → PostgreSQL Migration",
+            date=date.today(),
+            nfrs=nfrs,
+            context=context_text,
+            tradeoffs=tradeoffs,
+            review_date=review_date
+        )
         st.subheader("📑 Draft ADR (Mock Data)")
-        st.markdown(MOCK_ADR)
-        output = MOCK_ADR
+        st.markdown(adr_output)
     elif mode == "Real API Mode" and api_key:
         prompt = f"""
         You are an Architecture Copilot.
         Context:
-
         {nfrs}
-
-        {context}
+        {context_text}
 
         Task:
-        1. Propose exactly 3 database migration options for replacing Oracle.
-           For each: Pros, Cons, Risks, and 2 proof-points to de-risk.
-        2. Provide a trade-off matrix (Cost, Complexity, Speed, Reliability).
-        3. Draft an ADR in Markdown with: Title, Status, Date, Context, Options, Decision,
-           Consequences, Architecture diagram (Mermaid), Rollout & Rollback, Fitness Functions, Review date.
+        1. Propose 3 options for Oracle migration.
+        2. Provide a trade-off matrix for {', '.join(tradeoffs)}.
+        3. Draft an ADR in Markdown.
         """
         with st.spinner("Calling GPT model..."):
             resp = client.chat.completions.create(
@@ -128,22 +84,25 @@ if st.button("⚡ Generate ADR"):
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.4
             )
-            output = resp.choices[0].message.content
+            adr_output = resp.choices[0].message.content
             st.subheader("📑 Draft ADR (Real LLM Output)")
-            st.markdown(output)
+            st.markdown(adr_output)
     else:
         st.warning("⚠️ Please provide an API key for Real API Mode.")
-        output = ""
+        adr_output = ""
 
-    if output:
-        out_dir = Path("out")
-        out_dir.mkdir(exist_ok=True)
-        adr_path = out_dir / "ADR-001.md"
-        adr_path.write_text(output)
-
+    # Save ADR
+    if adr_output:
+        adr_path = out_dir / f"ADR-{date.today()}.md"
+        adr_path.write_text(adr_output)
         st.download_button(
             label="💾 Download ADR (Markdown)",
-            data=output,
-            file_name="ADR-001.md",
+            data=adr_output,
+            file_name=adr_path.name,
             mime="text/markdown"
         )
+
+# --- ADR Registry ---
+st.subheader("📂 Past ADRs")
+for file in sorted(out_dir.glob("ADR-*.md")):
+    st.markdown(f"- [📄 {file.name}]({file})")
