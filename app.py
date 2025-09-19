@@ -1,4 +1,4 @@
-import streamlit as st
+    import streamlit as st
 import os
 from pathlib import Path
 from datetime import date
@@ -93,8 +93,11 @@ if st.button("⚡ Generate ADR"):
 
     # Save ADR
     if adr_output:
-        adr_path = out_dir / f"ADR-{date.today()}.md"
-        adr_path.write_text(adr_output)
+       
+        fname = f"ADR-{datetime.now().strftime('%Y%m%d-%H%M%S')}.md"
+        adr_path = out_dir / fname
+        adr_path.write_text(adr_output)      
+       
         st.download_button(
             label="💾 Download ADR (Markdown)",
             data=adr_output,
