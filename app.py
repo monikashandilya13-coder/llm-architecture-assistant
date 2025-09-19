@@ -105,4 +105,12 @@ if st.button("⚡ Generate ADR"):
 # --- ADR Registry ---
 st.subheader("📂 Past ADRs")
 for file in sorted(out_dir.glob("ADR-*.md")):
-    st.markdown(f"- [📄 {file.name}]({file})")
+    with st.expander(f"📄 {file.name}"):
+        content = file.read_text()
+        st.markdown(content)
+        st.download_button(
+            label=f"💾 Download {file.name}",
+            data=content,
+            file_name=file.name,
+            mime="text/markdown"
+        )
