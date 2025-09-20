@@ -103,7 +103,7 @@ context_text = f"""### Application Transformation
 mode = st.radio("Mode", ["Mock Mode", "Groq API"], horizontal=True)
 
 # Optional: choose Groq model
-model_id = "llama3-70b-8192"
+model_id = "llama-3.1-8b-instant"
 if mode == "Groq API":
     model_id = st.selectbox(
         "Groq model",
