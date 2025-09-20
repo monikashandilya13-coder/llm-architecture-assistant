@@ -105,12 +105,6 @@ mode = st.radio("Mode", ["Mock Mode", "Groq API"], horizontal=True)
 api_key = ""
 client = None
 if mode == "Groq API":
-   model_id = st.selectbox(
-        "Groq model",
-        ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"],
-        index=0
-    )
-    
   api_key = (
         st.secrets.get("gsk_2025", "")
         or os.getenv("GROQ_API_KEY", "")
