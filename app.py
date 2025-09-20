@@ -6,9 +6,10 @@ from jinja2 import Template
 
 # Groq client (fast Llama)
 try:
-    from groq import Groq
+    from groq import Groq, BadRequestError
 except ImportError:
     Groq = None
+    BadRequestError = Exception
 
 # ---------- Page ----------
 st.set_page_config(page_title="LLM-Driven ADR Assistant", layout="wide")
@@ -101,15 +102,24 @@ context_text = f"""### Application Transformation
 # ---------- Mode ----------
 mode = st.radio("Mode", ["Mock Mode", "Groq API"], horizontal=True)
 
+# Optional: choose Groq model
+model_id = "llama3-70b-8192"
+if mode == "Groq API":
+    model_id = st.selectbox(
+        "Groq model",
+        ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"],
+        index=0,
+    )
+
 # Read key in this order: Streamlit Secrets (gsk_2025) -> ENV (GROQ_API_KEY) -> Text box
 api_key = ""
 client = None
 if mode == "Groq API":
-  api_key = (
+    api_key = (
         st.secrets.get("gsk_2025", "")
         or os.getenv("GROQ_API_KEY", "")
         or st.text_input("Groq API Key", type="password")
- )
+    )
     if api_key and Groq:
         client = Groq(api_key=api_key)
 
@@ -153,33 +163,6 @@ Start DB-first if licensing/RTO pressure is highest.
 Start App-first if velocity/coupling is the bottleneck.  
 Infra-first fits mature platform teams with low app churn.
 
-## Mermaid Diagram
-```mermaid
-flowchart TD
-  subgraph Legacy
-    A[Monolith] --> B[(RDBMS)]
-    A --> C[Batch Jobs]
-  end
-  subgraph Target
-    D[Modular Services] --> E[(Managed Postgres)]
-    D -->|Async| G[(Kafka)]
-    F[Kubernetes Platform]
-  end
-  A -->|Strangler| D
-  B -->|Data Migration| E
-  C --> F
-```
-
-## Rollout & Rollback
-- Rollout: seams -> modularize -> dual-write -> phased cutover -> decommission
-- Rollback: switchback traffic; restore snapshot; replay messages
-
-## Fitness Functions
-- P95 latency < {{ latency }}
-- Monthly infra cost < {{ cost_cap }}
-- Error budget burn rate within SLOs
-- Backup restore drill meets RTO/RPO
-
 ## Review
 - Review date: {{ review_date }}
 """
@@ -216,18 +199,26 @@ Context:
 Evaluate three strategies (App-first, DB-first, Infra-first):
 - Provide Pros, Cons, Risks for each
 - Build a trade-off matrix for: {', '.join(tradeoffs)} (scores 1–5 with short justification)
-- Output a complete ADR in Markdown with: Title, Status, Date, Context, Options, Decision, Mermaid diagram, Rollout & Rollback, Fitness Functions, Review date.
+- Output a complete ADR in Markdown with: Title, Status, Date, Context, Options, Decision, Fitness Functions, Review date.
 Keep it concise and actionable.
 """
-        with st.spinner("Calling Groq (Llama 3)…"):
-            resp = client.chat.completions.create(
-                model="llama3-70b-8192",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,max_tokens=900,
-            )
-            adr_output = resp.choices[0].message.content
-            st.subheader("Draft ADR (Groq Output)")
-            st.markdown(adr_output)
+        try:
+            with st.spinner("Calling Groq model..."):
+                resp = client.chat.completions.create(
+                    model=model_id,
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3,
+                    max_tokens=900,  # important for Groq
+                )
+                adr_output = resp.choices[0].message.content
+                st.subheader("Draft ADR (Groq Output)")
+                st.markdown(adr_output)
+        except BadRequestError as e:
+            st.error("Groq BadRequestError — usually due to missing/invalid params (check max_tokens).")
+            st.code(str(e))
+        except Exception as e:
+            st.error("Unexpected error when calling Groq.")
+            st.code(str(e))
 
     else:
         st.warning("Provide a Groq API key or use Mock Mode.")
