@@ -109,7 +109,7 @@ if mode == "Groq API":
         st.secrets.get("gsk_2025", "")
         or os.getenv("GROQ_API_KEY", "")
         or st.text_input("Groq API Key", type="password")
-    )
+ )
     if api_key and Groq:
         client = Groq(api_key=api_key)
 
