@@ -105,6 +105,12 @@ mode = st.radio("Mode", ["Mock Mode", "Groq API"], horizontal=True)
 api_key = ""
 client = None
 if mode == "Groq API":
+  model_id = st.selectbox(
+        "Groq model",
+        ["llama3-70b-8192", "llama3-8b-8192", "mixtral-8x7b-32768"],
+        index=0
+    )
+    
     api_key = (
         st.secrets.get("gsk_2025", "")
         or os.getenv("GROQ_API_KEY", "")
@@ -223,7 +229,7 @@ Keep it concise and actionable.
             resp = client.chat.completions.create(
                 model="llama3-70b-8192",
                 messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
+                temperature=0.3,max_tokens=900,
             )
             adr_output = resp.choices[0].message.content
             st.subheader("Draft ADR (Groq Output)")
