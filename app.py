@@ -114,10 +114,9 @@ mode = st.radio("Mode", ["Mock Mode", "Real API Mode"], horizontal=True)
 api_key = ""
 client = None
 if mode == "Real API Mode":
-    api_key = st.text_input("🔑 OpenAI API Key", type="password")
-    if api_key and OpenAI:
-        os.environ["OPENAI_API_KEY"] = api_key
-        client = OpenAI()
+    api_key = st.secrets.get("gsk_2025", "")
+    if api_key and OpenAI:        
+        client = OpenAI(api_key=api_key)
 
 # =============================
 # 🧠 MOCK TEMPLATE
