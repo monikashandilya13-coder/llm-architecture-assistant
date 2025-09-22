@@ -107,7 +107,7 @@ model_id = "llama-3.1-8b-instant"
 if mode == "Groq API":
     model_id = st.selectbox(
         "Groq model",
-        ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b"],        
+        ["llama-3.1-8b-instant", "mixtral-8x7b"],        
         index=0,
     )
 
